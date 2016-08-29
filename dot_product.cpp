@@ -25,7 +25,7 @@ union UnitVec
 {
 #if defined(__AVX__)
   using intrinsic = __m256;
-#elif defined(__SSE4_1__)
+#elif defined(__SSE__)
   using intrinsic = __m128;
 #endif
   static constexpr size_t size = sizeof(intrinsic)/sizeof(float);
@@ -52,6 +52,16 @@ union UnitVec
     return *this;
   }
 
+  UnitVec& operator*=(UnitVec const& rhs)
+  {
+#if defined(__AVX__)
+    i = _mm256_mul_ps(i, rhs.i);
+#elif defined(__SSE__)
+    i = _mm_mul_ps(i, rhs.i);
+#endif
+    return *this;
+  }
+
   float hadd() const
   {
 #if defined(__AVX__)
@@ -74,11 +84,22 @@ union UnitVec
 
 UnitVec operator*(UnitVec const& lhs, UnitVec const& rhs)
 {
-  UnitVec ret{0};
+  UnitVec ret{{0}};
 #if defined(__AVX__)
   ret.i = _mm256_mul_ps(lhs.i, rhs.i);
 #else
   ret.i = _mm_mul_ps(lhs.i, rhs.i);
+#endif
+  return ret;
+}
+
+UnitVec operator+(UnitVec const& lhs, UnitVec const& rhs)
+{
+  UnitVec ret{{0}};
+#if defined(__AVX__)
+  ret.i = _mm256_add_ps(lhs.i, rhs.i);
+#else
+  ret.i = _mm_add_ps(lhs.i, rhs.i);
 #endif
   return ret;
 }
@@ -89,8 +110,13 @@ float dot_product__01(UnitVec const& a, UnitVec const& b)
 #if defined(__AVX__)
   r.i = _mm256_dp_ps(a.i, b.i, 0xf1);
   return r[0] + r[4];
-#else
+#elif defined(__SSE4_1__)
   r.i = _mm_dp_ps(a.i, b.i, 0xf1);
+  return r[0];
+#elif defined(__SSE3__)
+  r.i = _mm_mul_ps(a.i, b.i);
+  r.i = _mm_hadd_ps(r.i, r.i);
+  r.i = _mm_hadd_ps(r.i, r.i);
   return r[0];
 #endif
 }
@@ -137,14 +163,55 @@ struct StaticVec
     return data[i.quot][i.rem];
   }
 
+  StaticVec<N>& operator*=(StaticVec<N> const& rhs)
+  {
+    for (size_t i = 0; i < nb_unitvecs; ++i)
+    {
+      data[i] *= rhs.data[i];
+    }
+    return *this;
+  }
+
   UnitVec data[nb_unitvecs];
 };
+
+template <size_t N>
+StaticVec<N> operator+(StaticVec<N> const& lhs, StaticVec<N> const& rhs)
+{
+  StaticVec<N> ret{0};
+  for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
+  {
+    ret.data[i] = lhs.data[i] + rhs.data[i];
+  }
+  return ret;
+}
+
+
+
+template <size_t N>
+decltype(auto) hadd(StaticVec<N> const& val)
+{
+  union u_t
+  {
+    UnitVec const* u;
+    StaticVec<N/2> const* h;
+  };
+  u_t const lhs {&val.data[0]};
+  u_t const rhs {&val.data[StaticVec<N>::nb_unitvecs / 2]};
+  return hadd(*lhs.h + *rhs.h);
+}
+
+template <>
+decltype(auto) hadd(StaticVec<UnitVec::size> const& val)
+{
+  return val.data[0].hadd();
+}
 
 template <size_t N>
 float dot_product__00(StaticVec<N> const& l, StaticVec<N> const& r)
 {
   float ret{0};
-  for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
+  for (size_t i = 0; i < N; ++i)
   {
     ret += dot_product__00(l.data[i], r.data[i]);
   }
@@ -165,12 +232,23 @@ float dot_product__01(StaticVec<N> const& l, StaticVec<N> const& r)
 template <size_t N>
 float dot_product__02(StaticVec<N> const& l, StaticVec<N> const& r)
 {
-  UnitVec acc{0};
+  UnitVec acc{{0}};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
   {
     acc += l.data[i] * r.data[i];
   }
   return acc.hadd();
+}
+
+template <size_t N>
+float dot_product__03(StaticVec<N>& l, StaticVec<N> const& r)
+{
+  float res{0};
+  for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
+  {
+    res += (l.data[i] * r.data[i]).hadd();
+  }
+  return res;
 }
 
 
@@ -241,6 +319,17 @@ int main()
             << " " << res02
             << " elapsed " << elapsed_res02.count() << " ns"
             << std::endl;
+
+  const auto start_res03 = clock_::now();
+  const auto res03 = dot_product__03(u, v);
+  const auto elapsed_res03 = to_ns(clock_::now() - start_res03);
+
+  std::cout << "StaticVec 03 size " << StaticVec<N>::size
+            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
+            << " " << res03
+            << " elapsed " << elapsed_res03.count() << " ns"
+            << std::endl;
+
 
   return 0;
 }
