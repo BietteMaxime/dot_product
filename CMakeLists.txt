@@ -6,7 +6,7 @@ option(LLVM_BITCODE OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra -Werror -pedantic -fno-rtti -fno-exceptions -mavx")
 set(CMAKE_LINK_FLAGS "${CMAKE_LINK_FLAGS} -flto")
 
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ftree-vectorize -ffast-math")
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ftree-vectorize")
 
 if(LLVM_BITCODE)
   find_package(LLVM REQUIRED)
