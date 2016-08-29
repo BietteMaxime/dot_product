@@ -23,6 +23,13 @@ if(LLVM_BITCODE)
   include(${CMAKE_SOURCE_DIR}/cmake/LLVMTools.cmake)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-use-cxa-atexit")
   add_bitcode(dot_product dot_product.cpp)
+  add_custom_target(bench
+    COMMAND ${CMAKE_HOME_DIRECTORY}/scripts/bench.sh 100 lli ${PROJECT_BINARY_DIR}/dot_product.bc
+    DEPENDS dot_product)
+
 else()
   add_executable(dot_product dot_product.cpp)
+  add_custom_target(bench
+    COMMAND ${CMAKE_HOME_DIRECTORY}/scripts/bench.sh 100 ${PROJECT_BINARY_DIR}/dot_product
+    DEPENDS dot_product)
 endif()
