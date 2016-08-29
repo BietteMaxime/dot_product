@@ -121,17 +121,6 @@ float dot_product__01(UnitVec const& a, UnitVec const& b)
 #endif
 }
 
-float dot_product__00(UnitVec const& a, UnitVec const& b)
-{
-  float r = 0.0f;
-  for (size_t i = 0; i < UnitVec::size; ++i)
-  {
-    r += a[i] * b[i];
-  }
-  return r;
-}
-
-
 template <size_t N>
 struct StaticVec
 {
@@ -205,7 +194,7 @@ float dot_product__00(StaticVec<N> const& l, StaticVec<N> const& r)
   float ret{0};
   for (size_t i = 0; i < N; ++i)
   {
-    ret += dot_product__00(l.data[i], r.data[i]);
+    ret += l[i] * r[i];
   }
   return ret;
 }
