@@ -40,6 +40,9 @@ endfunction(CheckEmitLlvmFlag)
 macro(add_bitcode target)
 
     set(bcfiles "")
+
+    string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE_SUFFIX)
+
     foreach(srcfile ${ARGN})
         ## get the definitions, flags, and includes to use when compiling this file
         set(srcdefs "")
@@ -50,10 +53,10 @@ macro(add_bitcode target)
 
         set(srcflags "")
         if(${srcfile} MATCHES "(.*).(cpp|cc)")
-            separate_arguments(srcflags UNIX_COMMAND ${CMAKE_CXX_FLAGS})
+            separate_arguments(srcflags UNIX_COMMAND "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${BUILD_TYPE_SUFFIX}}")
             set(src_bc_compiler ${LLVM_BC_CXX_COMPILER})
         else()
-            separate_arguments(srcflags UNIX_COMMAND ${CMAKE_C_FLAGS})
+            separate_arguments(srcflags UNIX_COMMAND "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${BUILD_TYPE_SUFFIX}}")
             set(src_bc_compiler ${LLVM_BC_C_COMPILER} )
         endif()
 #    if(NOT ${CMAKE_C_FLAGS} STREQUAL "")
