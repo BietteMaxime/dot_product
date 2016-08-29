@@ -4,13 +4,13 @@
 #include <cstdlib>
 #include <chrono>
 
-#if defined(__SSE4_1__)
-#include <smmintrin.h>
-#endif // __SSE4_1__
-
 #if defined(__AVX__)
 #include <immintrin.h>
-#endif // __AVX__
+#elif defined(__SSE4_1__)
+#include <smmintrin.h>
+#elif defined(__SSE3__)
+#include <pmmintrin.h>
+#endif
 
 using clock_ = std::chrono::high_resolution_clock;
 
@@ -144,10 +144,6 @@ struct StaticVec
     assert(idx < N);
     const auto i = std::div(static_cast<long long int>(idx),
                             static_cast<long long int>(UnitVec::size));
-    // std::cout << __PRETTY_FUNCTION__
-    //           << " idx " << idx << " n " << nb_unitvecs
-    //           << " quot " << i.quot << " rem " << i.rem
-    //           << std::endl;
     return data[i.quot][i.rem];
   }
 
@@ -156,10 +152,6 @@ struct StaticVec
     assert(idx < N);
     const auto i = std::div(static_cast<long long int>(idx),
                             static_cast<long long int>(UnitVec::size));
-    // std::cout << __PRETTY_FUNCTION__
-    //           << " idx " << idx << " n " << nb_unitvecs
-    //           << " quot " << i.quot << " rem " << i.rem
-    //           << std::endl;
     return data[i.quot][i.rem];
   }
 
@@ -254,40 +246,11 @@ float dot_product__03(StaticVec<N>& l, StaticVec<N> const& r)
 
 int main()
 {
-  UnitVec a, b/*, r = {0}*/;
-
-  for (size_t i = 0; i < UnitVec::size; ++i)
-  {
-    a.f[i] = b.f[UnitVec::size - i - 1] = i;
-  }
-
-  for (size_t i = 0; i < UnitVec::size; ++i)
-  {
-      std::cout << i
-              << " a " << a[i]
-              << " b " << b[i]
-              << std::endl;
-  }
-
-
-  std::cout << "UnitVec size " << UnitVec::size
-            << " " << dot_product__00(a, b)
-            << " " << dot_product__01(a, b)
-            << std::endl;
-
   constexpr size_t N = 1 << 13;
   StaticVec<N> u, v;
   for (size_t i = 0; i < StaticVec<N>::size; ++i)
   {
     u[i] = v[StaticVec<N>::size - i - 1] = i;
-  }
-
-  for (size_t i = 0; i < StaticVec<N>::size; ++i)
-  {
-      std::cout << i
-              << " u " << u[i]
-              << " v " << v[i]
-              << std::endl;
   }
 
   const auto start_res00 = clock_::now();
@@ -329,7 +292,6 @@ int main()
             << " " << res03
             << " elapsed " << elapsed_res03.count() << " ns"
             << std::endl;
-
 
   return 0;
 }
