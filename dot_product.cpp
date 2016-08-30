@@ -189,7 +189,7 @@ decltype(auto) hadd(StaticVec<UnitVec::size> const& val)
 }
 
 template <size_t N>
-float dot_product__00(StaticVec<N> const& l, StaticVec<N> const& r)
+float dot_product__00(const float (&l)[N], const float (&r)[N])
 {
   float ret{0};
   for (size_t i = 0; i < N; ++i)
@@ -237,13 +237,14 @@ int main()
 {
   constexpr size_t N = 1 << 13;
   StaticVec<N> u, v;
+  float w[N], x[N];
   for (size_t i = 0; i < StaticVec<N>::size; ++i)
   {
-    u[i] = v[StaticVec<N>::size - i - 1] = i;
+    u[i] = v[StaticVec<N>::size - i - 1] = w[i] = x[N - i - 1] = i;
   }
 
   const auto start_res00 = clock_::now();
-  const auto res00 = dot_product__00(u, v);
+  const auto res00 = dot_product__00(w, x);
   const auto elapsed_res00 = to_ns(clock_::now() - start_res00);
 
   std::cout << "StaticVec 00 size " << StaticVec<N>::size
