@@ -15,15 +15,6 @@
 #include <Eigen/Core>
 
 
-using clock_ = std::chrono::high_resolution_clock;
-
-template <typename T>
-auto to_ns(T const& val)
-{
-  return std::chrono::duration_cast<std::chrono::nanoseconds>(val);
-}
-
-
 union UnitVec
 {
 #if defined(__AVX__)
@@ -283,7 +274,7 @@ float dot_product__22(StaticVec<N> const& l, StaticVec<N> const& r)
 
 template <size_t N>
 __attribute__((noinline))
-float dot_product__30(StaticVec<N>& l, StaticVec<N> const& r)
+float dot_product__30(StaticVec<N> const& l, StaticVec<N> const& r)
 {
   asm("#dot_product__30_start");
   float res{0};
@@ -307,6 +298,35 @@ float dot_product__40(Eigen::Array<float, N, 1> const& l,
 }
 
 
+using clock_ = std::chrono::high_resolution_clock;
+
+
+template <class duration_t>
+auto to_ns(duration_t&& val)
+{
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(val).count();
+}
+
+
+template <class func_t, class... Args>
+auto measure(func_t func, Args&&... args)
+{
+  const auto start = clock_::now();
+  auto res = func(std::forward<Args>(args)...);
+  const auto stop = clock_::now();
+  return std::make_pair(res, to_ns(stop - start));
+}
+
+template <class measure_t>
+void print_measure(const char* method_name, measure_t&& measure)
+{
+  std::cout << "StaticVec " << method_name
+            << " " << measure.first
+            << " elapsed " << measure.second << " ns"
+            << std::endl;
+}
+
+
 int main()
 {
   constexpr size_t N = 1 << 13;
@@ -321,75 +341,47 @@ int main()
       = i;
   }
 
-  const auto start_res00 = clock_::now();
-  const auto res00 = dot_product__00(w, x);
-  const auto elapsed_res00 = to_ns(clock_::now() - start_res00);
 
-  std::cout << "StaticVec 00 size " << StaticVec<N>::size
-            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res00
-            << " elapsed " << elapsed_res00.count() << " ns"
-            << std::endl;
+  const auto res00 = measure([] (const float (&a)[N], const float(&b)[N]) {
+        return dot_product__00(a, b);
+      }, w, x);
+  print_measure("00", res00);
 
-  const auto start_res10 = clock_::now();
-  const auto res10 = dot_product__10(u, v);
-  const auto elapsed_res10 = to_ns(clock_::now() - start_res10);
+  const auto res10 = measure([] (const StaticVec<N>& a,
+                                 const StaticVec<N>& b) {
+      return dot_product__10(a, b);
+    }, u, v);
+  print_measure("10", res10);
 
-  std::cout << "StaticVec 10 size " << StaticVec<N>::size
-            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res10
-            << " elapsed " <<elapsed_res10.count() << " ns"
-            << std::endl;
+  const auto res20 = measure([] (const StaticVec<N>& a,
+                                 const StaticVec<N>& b) {
+      return dot_product__20(a, b);
+    }, u, v);
+  print_measure("20", res20);
 
-  const auto start_res20 = clock_::now();
-  const auto res20 = dot_product__20(u, v);
-  const auto elapsed_res20 = to_ns(clock_::now() - start_res20);
+  const auto res21 = measure([] (const StaticVec<N>& a,
+                                 const StaticVec<N>& b) {
+      return dot_product__21(a, b);
+    }, u, v);
+  print_measure("21", res21);
 
-  std::cout << "StaticVec 20 size " << StaticVec<N>::size
-            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res20
-            << " elapsed " << elapsed_res20.count() << " ns"
-            << std::endl;
+  const auto res22 = measure([] (const StaticVec<N>& a,
+                                 const StaticVec<N>& b) {
+      return dot_product__22(a, b);
+    }, u, v);
+  print_measure("22", res22);
 
-  const auto start_res21 = clock_::now();
-  const auto res21 = dot_product__21(u, v);
-  const auto elapsed_res21 = to_ns(clock_::now() - start_res21);
+  const auto res30 = measure([] (const StaticVec<N>& a,
+                                 const StaticVec<N>& b) {
+      return dot_product__30(a, b);
+    }, u, v);
+  print_measure("30", res30);
 
-  std::cout << "StaticVec 21 size " << StaticVec<N>::size
-            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res21
-            << " elapsed " << elapsed_res21.count() << " ns"
-            << std::endl;
-
-  const auto start_res22 = clock_::now();
-  const auto res22 = dot_product__22(u, v);
-  const auto elapsed_res22 = to_ns(clock_::now() - start_res22);
-
-  std::cout << "StaticVec 22 size " << StaticVec<N>::size
-            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res22
-            << " elapsed " << elapsed_res22.count() << " ns"
-            << std::endl;
-
-  const auto start_res30 = clock_::now();
-  const auto res30 = dot_product__30(u, v);
-  const auto elapsed_res30 = to_ns(clock_::now() - start_res30);
-
-  std::cout << "StaticVec 30 size " << StaticVec<N>::size
-            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res30
-            << " elapsed " << elapsed_res30.count() << " ns"
-            << std::endl;
-
-  const auto start_res40 = clock_::now();
-  const auto res40 = dot_product__40(y, z);
-  const auto elapsed_res40 = to_ns(clock_::now() - start_res40);
-
-  std::cout << "StaticVec 40 size " << StaticVec<N>::size
-            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res40
-            << " elapsed " << elapsed_res40.count() << " ns"
-            << std::endl;
+  const auto res40 = measure([] (const Eigen::Array<float, N, 1>& a,
+                                 const Eigen::Array<float, N, 1>& b) {
+      return dot_product__40(a, b);
+    }, y, z);
+  print_measure("40", res40);
 
   return 0;
 }
