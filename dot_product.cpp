@@ -198,45 +198,56 @@ decltype(auto) hadd(StaticVec<UnitVec::size> const& val)
 
 
 template <size_t N>
+__attribute__((noinline))
 float dot_product__00(const float (&l)[N], const float (&r)[N])
 {
+  asm("#dot_product__00_start");
   float ret{0};
   for (size_t i = 0; i < N; ++i)
   {
     ret += l[i] * r[i];
   }
+  asm("#dot_product__00_end");
   return ret;
 }
 
 
 template <size_t N>
+__attribute__((noinline))
 float dot_product__10(StaticVec<N> const& l, StaticVec<N> const& r)
 {
+  asm("#dot_product__10_start");
   float ret{0};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
   {
     ret += dot_product__10(l.data[i], r.data[i]);
   }
+  asm("#dot_product__10_end");
   return ret;
 }
 
 
 template <size_t N>
+__attribute__((noinline))
 float dot_product__20(StaticVec<N> const& l, StaticVec<N> const& r)
 {
+  asm("#dot_product__20_start");
   UnitVec acc{{0}};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
   {
     acc += l.data[i] * r.data[i];
   }
   const auto ret = acc.hadd();
+  asm("#dot_product__20_end");
   return ret;
 }
 
 
 template <size_t N>
+__attribute__((noinline))
 float dot_product__21(StaticVec<N> const& l, StaticVec<N> const& r)
 {
+  asm("#dot_product__21_start");
   UnitVec acc0{{0}}, acc1{{0}};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs / 2; ++i)
   {
@@ -244,14 +255,17 @@ float dot_product__21(StaticVec<N> const& l, StaticVec<N> const& r)
     acc1 += l.data[i * 2 + 1] * r.data[i * 2 + 1];
   }
   const auto ret = UnitVec{acc0 + acc1}.hadd();
+  asm("#dot_product__21_end");
   return ret;
 }
 
 
 template <size_t N>
+__attribute__((noinline))
 float dot_product__22(StaticVec<N> const& l, StaticVec<N> const& r)
 
 {
+  asm("#dot_product__22_start");
   UnitVec acc0{{0}}, acc1{{0}}, acc2{{0}}, acc3{{0}};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs / 4; ++i)
   {
@@ -262,26 +276,33 @@ float dot_product__22(StaticVec<N> const& l, StaticVec<N> const& r)
 
   }
   const auto ret = UnitVec{acc0 + acc1 + acc2 + acc3}.hadd();
+  asm("#dot_product__22_end");
   return ret;
 }
 
 
 template <size_t N>
+__attribute__((noinline))
 float dot_product__30(StaticVec<N>& l, StaticVec<N> const& r)
 {
+  asm("#dot_product__30_start");
   float res{0};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
   {
     res += (l.data[i] * r.data[i]).hadd();
   }
+  asm("#dot_product__30_end");
   return res;
 }
 
 template <int N>
+__attribute__((noinline))
 float dot_product__40(Eigen::Array<float, N, 1> const& l,
                       Eigen::Array<float, N, 1> const& r)
 {
+  asm("#dot_product__40_start");
   const auto ret = (l + r).sum();
+  asm("#dot_product__40_end");
   return ret;
 }
 
