@@ -37,7 +37,7 @@ if(LLVM_BITCODE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-use-cxa-atexit")
   add_bitcode(dot_product dot_product.cpp)
   add_custom_target(bench
-    COMMAND ${CMAKE_HOME_DIRECTORY}/scripts/bench.sh 1000 lli -O3 ${PROJECT_BINARY_DIR}/dot_product.bc
+    COMMAND ${CMAKE_HOME_DIRECTORY}/scripts/bench.sh 1000 lli -O3 -ffast-math ${PROJECT_BINARY_DIR}/dot_product.bc
     DEPENDS dot_product)
 
 else()
