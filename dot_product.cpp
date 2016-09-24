@@ -12,6 +12,9 @@
 #include <pmmintrin.h>
 #endif
 
+#include <Eigen/Core>
+
+
 using clock_ = std::chrono::high_resolution_clock;
 
 template <typename T>
@@ -104,7 +107,7 @@ UnitVec operator+(UnitVec const& lhs, UnitVec const& rhs)
   return ret;
 }
 
-float dot_product__01(UnitVec const& a, UnitVec const& b)
+float dot_product__10(UnitVec const& a, UnitVec const& b)
 {
   UnitVec r;
 #if defined(__AVX__)
@@ -128,19 +131,23 @@ struct StaticVec
   static constexpr size_t size = N;
   static constexpr size_t nb_unitvecs = N / UnitVec::size;
 
+  static constexpr auto idx_(size_t idx)
+  {
+    return std::div(static_cast<long>(idx),
+                    static_cast<long>(UnitVec::size));
+  }
+
   float const& operator[](size_t idx) const
   {
     assert(idx < N);
-    const auto i = std::div(static_cast<long long int>(idx),
-                            static_cast<long long int>(UnitVec::size));
+    const auto i = idx_(idx);
     return data[i.quot][i.rem];
   }
 
   float& operator[](size_t idx)
   {
     assert(idx < N);
-    const auto i = std::div(static_cast<long long int>(idx),
-                            static_cast<long long int>(UnitVec::size));
+    const auto i = idx_(idx);
     return data[i.quot][i.rem];
   }
 
@@ -182,11 +189,13 @@ decltype(auto) hadd(StaticVec<N> const& val)
   return hadd(*lhs.h + *rhs.h);
 }
 
+
 template <>
 decltype(auto) hadd(StaticVec<UnitVec::size> const& val)
 {
   return val.data[0].hadd();
 }
+
 
 template <size_t N>
 float dot_product__00(const float (&l)[N], const float (&r)[N])
@@ -199,30 +208,66 @@ float dot_product__00(const float (&l)[N], const float (&r)[N])
   return ret;
 }
 
+
 template <size_t N>
-float dot_product__01(StaticVec<N> const& l, StaticVec<N> const& r)
+float dot_product__10(StaticVec<N> const& l, StaticVec<N> const& r)
 {
   float ret{0};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
   {
-    ret += dot_product__01(l.data[i], r.data[i]);
+    ret += dot_product__10(l.data[i], r.data[i]);
   }
   return ret;
 }
 
+
 template <size_t N>
-float dot_product__02(StaticVec<N> const& l, StaticVec<N> const& r)
+float dot_product__20(StaticVec<N> const& l, StaticVec<N> const& r)
 {
   UnitVec acc{{0}};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
   {
     acc += l.data[i] * r.data[i];
   }
-  return acc.hadd();
+  const auto ret = acc.hadd();
+  return ret;
 }
 
+
 template <size_t N>
-float dot_product__03(StaticVec<N>& l, StaticVec<N> const& r)
+float dot_product__21(StaticVec<N> const& l, StaticVec<N> const& r)
+{
+  UnitVec acc0{{0}}, acc1{{0}};
+  for (size_t i = 0; i < StaticVec<N>::nb_unitvecs / 2; ++i)
+  {
+    acc0 += l.data[i * 2] * r.data[i * 2];
+    acc1 += l.data[i * 2 + 1] * r.data[i * 2 + 1];
+  }
+  const auto ret = UnitVec{acc0 + acc1}.hadd();
+  return ret;
+}
+
+
+template <size_t N>
+float dot_product__22(StaticVec<N> const& l, StaticVec<N> const& r)
+
+{
+  UnitVec acc0{{0}}, acc1{{0}}, acc2{{0}}, acc3{{0}};
+  for (size_t i = 0; i < StaticVec<N>::nb_unitvecs / 4; ++i)
+  {
+    acc0 += l.data[i * 4] * r.data[i];
+    acc1 += l.data[i * 4 + 1] * r.data[i * 4 + 1];
+    acc2 += l.data[i * 4 + 2] * r.data[i * 4 + 2];
+    acc3 += l.data[i * 4 + 3] * r.data[i * 4 + 3];
+
+  }
+  const auto ret = UnitVec{acc0 + acc1 + acc2 + acc3}.hadd();
+  return ret;
+}
+
+
+template <size_t N>
+float dot_product__30(StaticVec<N>& l, StaticVec<N> const& r)
 {
   float res{0};
   for (size_t i = 0; i < StaticVec<N>::nb_unitvecs; ++i)
@@ -232,15 +277,27 @@ float dot_product__03(StaticVec<N>& l, StaticVec<N> const& r)
   return res;
 }
 
+template <int N>
+float dot_product__40(Eigen::Array<float, N, 1> const& l,
+                      Eigen::Array<float, N, 1> const& r)
+{
+  const auto ret = (l + r).sum();
+  return ret;
+}
+
 
 int main()
 {
   constexpr size_t N = 1 << 13;
   StaticVec<N> u, v;
   float w[N], x[N];
+  Eigen::Array<float, N, 1> y, z;
   for (size_t i = 0; i < StaticVec<N>::size; ++i)
   {
-    u[i] = v[StaticVec<N>::size - i - 1] = w[i] = x[N - i - 1] = i;
+    u[i] = v[StaticVec<N>::size - i - 1]
+      = w[i] = x[N - i - 1]
+      = y[i] = z[N - i - 1]
+      = i;
   }
 
   const auto start_res00 = clock_::now();
@@ -253,34 +310,64 @@ int main()
             << " elapsed " << elapsed_res00.count() << " ns"
             << std::endl;
 
-  const auto start_res01 = clock_::now();
-  const auto res01 = dot_product__01(u, v);
-  const auto elapsed_res01 = to_ns(clock_::now() - start_res01);
+  const auto start_res10 = clock_::now();
+  const auto res10 = dot_product__10(u, v);
+  const auto elapsed_res10 = to_ns(clock_::now() - start_res10);
 
-  std::cout << "StaticVec 01 size " << StaticVec<N>::size
+  std::cout << "StaticVec 10 size " << StaticVec<N>::size
             << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res01
-            << " elapsed " << elapsed_res01.count() << " ns"
+            << " " << res10
+            << " elapsed " <<elapsed_res10.count() << " ns"
             << std::endl;
 
-  const auto start_res02 = clock_::now();
-  const auto res02 = dot_product__02(u, v);
-  const auto elapsed_res02 = to_ns(clock_::now() - start_res02);
+  const auto start_res20 = clock_::now();
+  const auto res20 = dot_product__20(u, v);
+  const auto elapsed_res20 = to_ns(clock_::now() - start_res20);
 
-  std::cout << "StaticVec 02 size " << StaticVec<N>::size
+  std::cout << "StaticVec 20 size " << StaticVec<N>::size
             << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res02
-            << " elapsed " << elapsed_res02.count() << " ns"
+            << " " << res20
+            << " elapsed " << elapsed_res20.count() << " ns"
             << std::endl;
 
-  const auto start_res03 = clock_::now();
-  const auto res03 = dot_product__03(u, v);
-  const auto elapsed_res03 = to_ns(clock_::now() - start_res03);
+  const auto start_res21 = clock_::now();
+  const auto res21 = dot_product__21(u, v);
+  const auto elapsed_res21 = to_ns(clock_::now() - start_res21);
 
-  std::cout << "StaticVec 03 size " << StaticVec<N>::size
+  std::cout << "StaticVec 21 size " << StaticVec<N>::size
             << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
-            << " " << res03
-            << " elapsed " << elapsed_res03.count() << " ns"
+            << " " << res21
+            << " elapsed " << elapsed_res21.count() << " ns"
+            << std::endl;
+
+  const auto start_res22 = clock_::now();
+  const auto res22 = dot_product__22(u, v);
+  const auto elapsed_res22 = to_ns(clock_::now() - start_res22);
+
+  std::cout << "StaticVec 22 size " << StaticVec<N>::size
+            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
+            << " " << res22
+            << " elapsed " << elapsed_res22.count() << " ns"
+            << std::endl;
+
+  const auto start_res30 = clock_::now();
+  const auto res30 = dot_product__30(u, v);
+  const auto elapsed_res30 = to_ns(clock_::now() - start_res30);
+
+  std::cout << "StaticVec 30 size " << StaticVec<N>::size
+            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
+            << " " << res30
+            << " elapsed " << elapsed_res30.count() << " ns"
+            << std::endl;
+
+  const auto start_res40 = clock_::now();
+  const auto res40 = dot_product__40(y, z);
+  const auto elapsed_res40 = to_ns(clock_::now() - start_res40);
+
+  std::cout << "StaticVec 40 size " << StaticVec<N>::size
+            << " nb_unitvecs " << StaticVec<N>::nb_unitvecs
+            << " " << res40
+            << " elapsed " << elapsed_res40.count() << " ns"
             << std::endl;
 
   return 0;
