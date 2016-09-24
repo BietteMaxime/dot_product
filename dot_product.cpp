@@ -83,7 +83,7 @@ union UnitVec
 
   float f[size];
   intrinsic i;
-} __attribute__((aligned(16)));
+} __attribute__((aligned(16), packed));
 
 UnitVec operator*(UnitVec const& lhs, UnitVec const& rhs)
 {

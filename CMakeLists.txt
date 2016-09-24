@@ -8,10 +8,16 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 
 option(LLVM_BITCODE OFF)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra -Werror -pedantic -fno-rtti -fno-exceptions -mavx")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fno-rtti -fno-exceptions -mavx")
 set(CMAKE_LINK_FLAGS "${CMAKE_LINK_FLAGS} -flto")
 
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ftree-vectorize")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math -ftree-vectorize -march=native -mtune=native")
+else ()
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fast -xHOST -ipo -qopt-report -qopt-report-phase=vec")
+endif ()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   if(NOT LLVM_BITCODE)
